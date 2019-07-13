@@ -1,4 +1,4 @@
-# lankar-portal
+
 <h3>documentation and src for a SharePoint Online script</h3>
 
 <ul>
@@ -8,5 +8,3 @@
 <br/>
 The following image illustrates how to find the "Script Editor" web part in edit mode on a SharePoint page:
 
-
-<img src="/script_documentation.JPG?raw=true" />
