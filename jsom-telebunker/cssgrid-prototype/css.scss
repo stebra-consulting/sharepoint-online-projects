@@ -1,0 +1,124 @@
+/* Color Pallete: https://color.adobe.com/Copy-of-Flat-UI---CORAL-color-theme-8554063/edit/?copy=true
+
+Dark-Blue   : #2C3E50
+Pink        : #E74C5B
+Off-White   : #ECF0F1
+Baby-Blue   : #3498DB
+Blue        : #2980B9
+*/
+
+$dark-blue: #2C3E50;
+$dark-blue-highlight: #3f5973;
+$pink:  #e01f32;
+$off-white: #ECF0F1;
+$baby-blue: #3498DB;
+$blue: #5b80a4;
+$blue-highlight: #7b99b7;
+
+$color-main       : $off-white;
+$color-background : $off-white;
+$color-headlines  : $dark-blue;
+
+@import 'https://fonts.googleapis.com/css?family=Montserrat';
+
+$font-main: 'Montserrat', Helvetica, sans-serif;
+
+
+.accordion {
+    display: flex;
+    flex-direction:column;
+}
+.panel {
+    display:flex;
+    flex-direction:row;
+    justify-content:center;
+    
+}
+
+* {
+    font-size: 16px;
+    font-family: $font-main;
+}
+
+/* Accordion Styles */
+.accordion {
+    width: 60%;
+    margin: 0 auto;
+    border: 1px solid $off-white;
+}
+
+.childs{
+    display:flex;
+    flex-direction:column;
+}
+
+/* Button Styles */
+.accordion-btn {
+    background-color: $color-headlines;
+    font-size: 1.5em;
+    color: $color-main;
+    cursor: pointer;
+    padding: 1em;
+    width: 100%;
+    //text-align: left;
+    border: none;
+    transition: 0.5s;
+}
+.inner-accord {
+    width:100%;
+    display:flex;
+    flex-grow: 1; /* default 0 */
+}
+
+
+
+.accordion-btn:after {
+    content: '+';
+    font-size: 1em;
+    color: $pink;
+    //float: right;
+    margin-left: 5px;
+}
+
+/* Active and Hover Button Styles */
+.accordion-btn.active,
+.accordion-btn:hover {
+    background-color: $dark-blue-highlight;
+}
+
+.accordion-btn.active:after {
+    content: "-";
+}
+
+/* Panel Styles */
+.panel {
+    background-color: $off-white;
+    max-height: 0;
+    overflow: hidden;
+    transition: 0.5s ease-in-out;
+    opacity: 0;
+}
+
+.panel p {
+    font-size: 1.2em;
+    padding: 0 2em;
+}
+
+/* Show Panel onclick */
+.panel.show {
+    //display: block;
+    opacity: 1;
+    max-height: 500px;
+}
+
+/* Inner Accordion Style */
+.inner-accord {
+    background-color: $blue;
+    font-size: 1.2em;
+    padding: 1em 1.75em;
+}
+
+.inner-accord.active,
+.inner-accord:hover {
+    background-color: $blue-highlight;
+}

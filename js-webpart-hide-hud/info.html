@@ -1,0 +1,27 @@
+<style>
+   /*
+      HUD is short for Heads Up Display.
+      This Styling intends to hide all but the 'main' screen in the browser for SharePoint online:
+      Think "Enter Fullscreen Mode"
+      This is useful when you host another site inside a webpart, and you only want to aggregate the 'CONTENT' a.k.a "Hide HUD".
+   */
+   #suiteBarDelta,
+   #sideNavBox,
+   #s4-ribbonrow,
+   #s4-titlerow {
+      display: none !important;
+   }
+
+   #contentBox {
+      margin-left: 0px;
+   }
+</style>
+
+<script>
+
+   //This script lets you manually open/close the controls, 
+   //since if you hide the HUD, you need some way to toggle edit mode.
+   //programmatically click on save/edit
+   $('#ctl00_PageStateActionButton').click();
+
+</script>

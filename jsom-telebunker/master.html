@@ -1,0 +1,538 @@
+<!-- # HTML ########################################## -->
+<div id="app">loading...</div>
+
+<!-- # JAVASCRIPT ########################################## -->
+<script>
+
+    (function () { //start closure
+        // your page initialization code here
+        // the DOM will be available here
+
+        //This makes sure all necessary Js files are loaded before you call taxonomy store
+        SP.SOD.executeFunc('sp.runtime.js', false, function () {
+            SP.SOD.executeFunc('sp.js', 'SP.ClientContext', function () {
+                SP.SOD.registerSod('sp.taxonomy.js', SP.Utilities.Utility.getLayoutsPageUrl('sp.taxonomy.js'));//loads sp.taxonomy.js file
+                SP.SOD.executeFunc('sp.taxonomy.js', false, appStart);
+            });
+        });
+    })();
+    //end closure
+
+    //================= GLOBAL VARIABLES ====================
+    var termsArray = [];
+    var termsObjects = {};
+    var targetListName = 'Webbplatssidor';
+    var termSetGuid = '4398b18a-059c-459d-b6b2-cc46a9ba09ea';
+    var taxfieldName = 'InstruktionsTyp';
+    var taxfieldNameReception = 'Reception';
+    var targetReception = null;
+    //examples: targetReception = 'KH', 'GG', 'TH';
+    //target GG by setting to value 'GG'.
+    //set targetReception to null if you want to target all instruktioner.
+
+    //var targetlistNames = ['Webbplatssidor', 'Pages']
+
+    //This method uses the Taxonomy client side object calls to get the terms 
+    function GetTermsFromTaxonomyStore() {
+
+        //Current Context
+        var context = SP.ClientContext.get_current();
+        //Current Taxonomy Session
+        var taxSession = SP.Taxonomy.TaxonomySession.getTaxonomySession(context);
+        //Term Store under which to create the term.
+        var termStore = taxSession.getDefaultSiteCollectionTermStore();
+        //Pass ID of the Meetings Term Set
+        var termSet = termStore.getTermSet(termSetGuid); //goto
+        var terms = termSet.get_terms();
+
+        context.load(terms);
+        context.executeQueryAsync(function () {
+            var termEnumerator = terms.getEnumerator();
+            while (termEnumerator.moveNext()) {
+                var currentTerm = termEnumerator.get_current();
+
+                //console.log(currentTerm);
+                var termCount = currentTerm.get_termsCount();
+
+                //console.log("this term has ", termCount, " children");
+
+                var termObj = {
+                    name: currentTerm.get_name(),
+                    count: termCount,
+                    id: currentTerm.get_id(),
+                    terms: currentTerm.get_terms()
+                }
+                termsArray.push(termObj);
+                termsObjects[currentTerm.get_name()] = termObj;
+
+                //console.log("currentTerm.get_termsCount()", currentTerm.get_termsCount());
+
+            }//after while enum
+
+            for (i = 0; i < termsArray.length; i++) {
+                var isLastCall = (termsArray.length === i + 1);
+                //console.log("i", i);
+                //console.log("termsArray.length", termsArray.length);
+                //console.log("(termsArray.length===i+1)", (termsArray.length === i + 1));
+                //console.log("isLastCall", isLastCall);
+                loadAndSaveChildren(termsArray[i], isLastCall);
+            }
+
+            //console.log("termsArray", termsArray);
+            //console.log("termsObjects", termsObjects);
+
+        }, function (sender, args) {
+            console.log(args.get_message());
+        });
+
+        function loadAndSaveChildren(obj, isLastCall) {
+
+            //console.log("running loadAndSaveChildren() with isLastCall set to", isLastCall);
+
+            isLastCall = isLastCall || 0;
+
+            //console.log("in loadAndSaveChildren( isLastCall is still ", isLastCall);
+
+            if (obj.count > 0 && obj.count !== undefined) {
+
+                var childTerms = obj.terms;
+                context.load(childTerms);
+                context.executeQueryAsync(
+                    function () {
+                        //console.log("success loading childTerms");
+                        var children = [];
+                        var cenum = childTerms.getEnumerator();
+                        while (cenum.moveNext()) {
+                            var cterm = cenum.get_current();
+                            //console.log("cterm.get_name()", cterm.get_name());
+                            children.push({
+                                name: cterm.get_name(),
+                                id: cterm.get_id()
+                            });
+                        }
+                        obj.children = children;
+                    },
+                    function (sender, args) { console.log(args.get_message()) }
+                );
+            }
+            if (isLastCall) {
+                printTerms();
+            }
+        }
+    }
+
+    function findLists(rootWeb, context) {
+        var lists = rootWeb.get_lists();
+        context.load(lists);
+        context.executeQueryAsync(
+            function () {
+                var listCount = lists.get_count();
+                if (listCount > 0 && listCount !== undefined) {
+                    for (i = 0; i < listCount; i++) {
+                        var list = lists.get_item(i);
+                        var title = list.get_title();
+                        if (title == targetListName) {
+                            getTaggedItems(list);
+                        }
+                    }
+                }
+            },
+            function (sender, args) { console.log("sender, args", sender, args) }
+        )
+    }
+
+    function enumWebs(propertiesToRetrieve, success, error) {
+        var context = SP.ClientContext.get_current();
+        var rootWeb = context.get_site().get_rootWeb();
+        var result = [];
+        var level = 0;
+        context.load(rootWeb, propertiesToRetrieve);
+        result.push(rootWeb);
+
+        findLists(rootWeb, context);
+
+        var colPropertiesToRetrieve = String.format('Include({0})', propertiesToRetrieve.join(','));
+        var enumWebsInner = function (web, result, success, error) {
+            level++;
+            var context = web.get_context();
+
+            var webs = web.get_webs();
+            context.load(webs, colPropertiesToRetrieve);
+            context.executeQueryAsync(
+                function () {
+                    for (var i = 0; i < webs.get_count(); i++) {
+                        var web = webs.getItemAtIndex(i);
+
+                        findLists(web, context);
+
+                        result.push(web);
+                        enumWebsInner(web, result, success, error);
+                    }
+                    level--;
+                    if (level == 0 && success)
+                        success(result);
+                },
+                error);
+        };
+        enumWebsInner(rootWeb, result, success, error);
+    }
+    function getTaggedItems(list) {
+        var context = SP.ClientContext.get_current();
+        context.load(list);
+        context.executeQueryAsync(
+            function () {
+                var camlQuery = new SP.CamlQuery();
+                camlQuery.set_viewXml('');
+                var items = list.getItems(camlQuery);
+
+                context.load(items);
+                context.executeQueryAsync(
+                    function () {
+
+                        var itemEnum = items.getEnumerator();
+                        while (itemEnum.moveNext()) {
+                            var currentItem = itemEnum.get_current();
+
+
+                            var fieldValues = currentItem.get_fieldValues();
+
+
+                            if (fieldValues[taxfieldName] !== undefined && fieldValues[taxfieldName] !== null) {
+                                var sendItemToView = false;
+                                var taxCollection = fieldValues[taxfieldNameReception];
+                                if (taxCollection !== undefined) {
+                                    var taxEnum = taxCollection.getEnumerator();
+                                    while (taxEnum.moveNext()) {
+                                        var currentTerm = taxEnum.get_current();
+                                        //console.log("reception is ", currentTerm);
+                                        //console.log("targetReception", targetReception);
+                                        if (targetReception === null || targetReception === undefined || targetReception === "" || currentTerm["$0_1"] === targetReception) {
+                                            sendItemToView = true;
+                                            //console.log('currentTerm["$0_1"]', currentTerm["$0_1"]);
+                                            //console.log(' ');
+                                            //console.log("targetReception", targetReception);
+                                            //console.log(' ');
+                                        }
+                                    }
+                                    if (sendItemToView) { updateView(currentItem, fieldValues) }
+                                }
+                            }
+                        }
+
+                    },
+                    function (sender, args) { console.log("sender, args", sender, args) }
+                )
+            },
+            function (sender, args) { console.log("sender, args", sender, args) }
+        )
+    }
+    function printTerms() {
+        //console.log("will now proceed to print terms");
+        app = document.getElementById("app");
+        //console.log("app", app);
+
+        setTimeout(function () {
+            var innerHtml = "";
+            /// CREATE HTML HERE
+            /*
+            <label class="toggle-tier1"> Brand </label>
+            <div class="tier1" >
+                <div class="tier2" >
+                    <label>Brand och Utrymning</label>
+                    <div class="tier3">
+                        <a href="">test-link.aspx</a>
+                        <a href="">test-link.aspx</a>
+                        <a href="">test-link.aspx</a>
+                    </div>
+                </div>
+            </div>
+            */
+
+            //console.log("in printTerms(), termsArray", termsArray);
+
+
+            for (i = 0; i < termsArray.length; i++) {
+
+                var allTier2AsHtml = "";
+                if (termsArray[i].children !== undefined && termsArray[i].children !== null) {
+                    for (y = 0; y < termsArray[i].children.length; y++) {
+
+
+                        allTier2AsHtml = allTier2AsHtml.concat(
+
+                            '<div class="tier2" >',
+                            '<label>', termsArray[i].children[y].name, '</label>',
+                            '<div class="tier3" id="', termsArray[i].children[y].name, '">',
+                            '</div>',
+                            '</div>'
+
+                        );
+                    }
+                }
+
+                innerHtml = innerHtml.concat(
+
+                    '<label class="toggle-tier1">', termsArray[i].name, '</label>',
+                    '<div class="tier1 ', termsArray[i].name, '" >',
+                    allTier2AsHtml,
+                    '</div>'
+
+                );
+            }
+
+            var expandButtonAsString = '<button class="expand-button expand" type="button" >+</button>';
+            var expandAllButtonAsString = '<button class="expand-button all expand" type="button" >+</button>';
+
+            innerHtml = expandButtonAsString + expandAllButtonAsString + innerHtml;
+            app.innerHTML = innerHtml;
+
+            //add event receivers
+            var expandButton = document.getElementsByClassName('expand-button')[0];
+            var expandAllButton = document.getElementsByClassName('expand-button')[1];
+
+            //console.log("adding event on element ", expandButton);
+
+            expandButton.onclick = function (e) {
+                var togglers = document.getElementsByClassName("toggle-tier1");
+                for (var i = 0; i < togglers.length; i++) {
+                    if (this.classList.contains('expand')) {
+                        togglers[i].nextElementSibling.classList.remove("show");
+                        togglers[i].nextElementSibling.classList.toggle("show");
+                    }
+                    else {
+                        togglers[i].nextElementSibling.classList.remove("show");
+                    }
+                }
+                this.classList.toggle('expand');
+                if (this.classList.contains('expand')) {
+                    this.innerHTML = '+';
+                }
+                else {
+                    this.innerHTML = '-';
+                }
+            }
+
+            expandAllButton.onclick = function (e) {
+                var togglers = document.getElementsByClassName("toggle-tier1");
+                for (var i = 0; i < togglers.length; i++) {
+                    if (this.classList.contains('expand')) {
+                        togglers[i].nextElementSibling.classList.remove("show");
+                        togglers[i].nextElementSibling.classList.toggle("show");
+                    }
+                    else {
+                        //togglers[i].nextElementSibling.classList.remove("show");
+                    }
+                }
+                var tier3s = document.getElementsByClassName("tier3");
+                for (var i = 0; i < tier3s.length; i++) {
+                    if (this.classList.contains('expand')) {
+                        tier3s[i].classList.remove('show');
+                        tier3s[i].classList.toggle('show');
+                    }
+                    else {
+                        tier3s[i].classList.remove('show');
+                    }
+
+                }
+                this.classList.toggle('expand');
+                if (this.classList.contains('expand')) {
+                    this.innerHTML = '+';
+                }
+                else {
+                    this.innerHTML = expandButton.innerHTML = '-';
+                    expandButton.classList.remove('expand');
+                    //
+                }
+            }
+
+            //accords event receivers
+            var accord = document.getElementsByClassName("tier2");
+            var i;
+
+            for (i = 0; i < accord.length; i++) {
+                accord[i].onclick = function () {
+                    this.querySelector(".tier3").classList.toggle("show");
+                }
+            }
+
+            var togglers = document.getElementsByClassName("toggle-tier1");
+            var y;
+
+            for (y = 0; y < togglers.length; y++) {
+                togglers[y].onclick = function () {
+                    //console.log("this.nextElementSibling", this.nextElementSibling)
+                    this.nextElementSibling.classList.toggle("show");
+                }
+            }
+            //continue execution
+
+            enumWebs(['Title'],
+                function (webs) {
+                    for (var i = 0; i < webs.length; i++) {
+                        ////console.log(webs[i].get_title());
+                        var web = webs[i];
+                    }
+                },
+                function (sender, args) {
+                    console.log(args.get_message());
+                }
+            );
+            //continue execution
+        }, 2000);
+    }
+    function updateView(listItem, fieldValues) {
+
+
+        //console.log("listItem", listItem);
+        //console.log("fieldValues", fieldValues);
+
+        var termName = fieldValues[taxfieldName]["$0_1"]//'höjd beredskap' //goto
+        //console.log("termName", termName);
+
+        var itemUrl = "https://" + window.location.hostname + fieldValues["FileRef"]
+
+        var tier3Element = document.getElementById(termName);
+        //console.log("tier3Element", tier3Element);
+        var a = document.createElement("a");
+        a.href = itemUrl;
+        a.innerHTML = fieldValues["FileLeafRef"].replace(".aspx", '');
+
+        let collection = tier3Element.getElementsByTagName('a');
+
+        //Sort entries Alphabetically
+        if (collection.length > 0) {
+            let arr = Array.prototype.slice.call(collection);
+            arr.push(a);
+            arr.sort(function (a, b) {
+                return a.innerHTML == b.innerHTML ? 0 : (a.innerHTML > b.innerHTML ? 1 : -1);
+            });
+            tier3Element.innerHTML = "";
+            for (let elem of arr) {
+                tier3Element.appendChild(elem);
+            }
+        }//...sort end
+        else {
+            tier3Element.appendChild(a);
+        }
+    }
+    function appStart() {
+        GetTermsFromTaxonomyStore();
+    }
+//appStart(); //only for console-staging
+</script>
+
+<!-- # CSS ########################################## -->
+<style>
+    #app {
+        box-sizing: border-box;
+    }
+
+    .tier1 {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .tier1 :hover {
+        background: #d3d3d3;
+    }
+
+    .tier3 a:first-child {
+        margin-top: 10px;
+    }
+
+    .tier2 {
+        cursor: pointer;
+        min-height: 40px;
+        background-color: #f4f4f4;
+        flex: 1;
+        min-width: 25%;
+        border: 5px solid white;
+        font-size: 16px;
+        text-align: center;
+        padding-top: 10px;
+    }
+
+    @media (max-width: 700px) {
+        .tier2 {
+            min-width: 33.33%;
+        }
+    }
+
+    @media (max-width: 400px) {
+        .tier2 {
+            min-width: 50%;
+        }
+    }
+
+    .tier3 {
+        display: flex;
+        flex-direction: column;
+        max-height: 0;
+        overflow: hidden;
+        transition: 0.2s ease-in-out;
+        opacity: 0;
+        background-color: aliceblue;
+    }
+
+    .tier3.show {
+        /*display: block;*/
+        opacity: 1;
+        max-height: 500px;
+    }
+
+    .toggle-tier1 {
+        cursor: pointer;
+        color: white;
+        background-color: black;
+        padding: 10px;
+        display: flex;
+        margin-top: 10px;
+        z-index: 100;
+        font-size: 18px;
+        padding-left: 15px;
+    }
+
+    .tier1 {
+        display: flex;
+        transition: 0.3s ease-in-out;
+        opacity: 0;
+        max-height: 0;
+        pointer-events: none;
+        z-index: 10;
+    }
+
+    .tier1.show {
+        opacity: 1;
+        z-index: 100;
+        pointer-events: inherit;
+        max-height: initial;
+    }
+
+    .expand-button {
+        min-width: 40px;
+        font-size: 25px;
+        background-color: black;
+        color: white;
+        padding: 0px;
+        padding-bottom: 6px;
+        margin-left: 0px;
+    }
+
+    .expand-button.all {
+        margin-left: 10px;
+        min-width: 40px;
+        background-color: #f4f4f4;
+        color: black;
+        border-color: lightgrey;
+    }
+
+    /*
+.expand-button.all:hover {
+  background-color: #d3d3d3 !important;
+}*/
+
+    .expand-button:hover {
+        background-color: #d3d3d3 !important;
+        cursor: pointer;
+    }
+</style>

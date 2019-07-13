@@ -1,0 +1,39 @@
+
+td img {
+     float:left!important;
+     margin-right:25px!important;
+}
+
+
+.collapsed::before {
+    color:#0072c6;
+    cursor: hand;
+    content: "(klicka för att läsa mer...)";
+}
+
+.collapsed {
+    max-height: 260px;
+    transition: max-height 0.15s ease-out;
+    overflow: hidden;
+}
+
+.ms-rtestate-field:not(.collapsed) {
+    max-height: initial;
+    transition: max-height 0.25s ease-in;
+}
+
+
+.ms-vb2 {font-size: 18px!important}
+
+
+#WebPartWPQ2 img {
+    max-width: 250px;
+}
+
+#WebPartWPQ2 {
+    margin-right: 30px;
+}
+
+#WebPartWPQ2 li {
+    list-style-position:inside;
+}

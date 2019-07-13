@@ -1,0 +1,41 @@
+{
+  "entries": [
+    {
+      "entry": "./lib/webparts/helloWorld/HelloWorldWebPart.js",
+      "manifest": "./src/webparts/helloWorld/HelloWorldWebPart.manifest.json",
+      "outputPath": "./dist/hello-world.bundle.js"
+    }
+  ],
+  "externals": {
+
+"sp-init": {
+ "path": "https://contoso.sharepoint.com/sites/sd1/_layouts/15/init.js",
+ "globalName": "$_global_init"
+},
+"microsoft-ajax": {
+ "path": "https://contoso.sharepoint.com/sites/sd1/_layouts/15/MicrosoftAjax.js",
+ "globalName": "Sys",
+ "globalDependencies": [ "sp-init" ]
+},
+"sp-runtime": {
+ "path": "https://contoso.sharepoint.com/sites/sd1/_layouts/15/SP.Runtime.js",
+ "globalName": "SP",
+ "globalDependencies": [ "microsoft-ajax" ]
+},
+"sharepoint": {
+ "path": "https://contoso.sharepoint.com/sites/sd1/_layouts/15/SP.js",
+ "globalName": "SP",
+ "globalDependencies": [ "sp-runtime" ]
+
+},
+"taxonomy": {
+ "path": "https://contoso.sharepoint.com/sites/sd1/_layouts/15/SP.Taxonomy.js",
+ "globalName": "SP",
+ "globalDependencies": [ "sp-runtime" ]
+
+}
+  },
+  "localizedResources": {
+    "helloWorldStrings": "webparts/helloWorld/loc/{locale}.js"
+  }
+}
